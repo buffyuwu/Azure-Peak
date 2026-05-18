@@ -389,6 +389,7 @@ GLOBAL_LIST_EMPTY(chosen_names)
 			dat += "</td>"
 			dat += "<td style='width:33%;text-align:right'>"
 			dat += "<a href='?_src_=prefs;preference=changelog;task=menu'>Changelog</a>"
+			dat += " | <a href='?_src_=prefs;preference=character_prefs_new'><b>New Character UI</b></a>"
 			dat += "</td>"
 			dat += "</tr>"
 
@@ -1437,6 +1438,10 @@ Slots: [job.spawn_positions] [job.round_contrib_points ? "RCP: +[job.round_contr
 				SetAntag(user)
 			else
 				SetAntag(user)
+	else if(href_list["preference"] == "character_prefs_new")
+		ui_interact(user)
+		return
+
 	else if(href_list["preference"] == "tgui_ui_prefs")
 		tgui_pref = !tgui_pref
 

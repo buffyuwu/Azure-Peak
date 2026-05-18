@@ -127,6 +127,7 @@ export default defineConfig({
       'tgui-dev-server': path.resolve(dirname, './packages/tgui-dev-server'),
       'roguefont/languages': path.resolve(dirname, "../interface/fonts/languages"),
       'roguefont': path.resolve(dirname, "../interface/fonts"),
+      'icons': path.resolve(dirname, "../icons"),
     },
   },
   stats: createStats(true),
