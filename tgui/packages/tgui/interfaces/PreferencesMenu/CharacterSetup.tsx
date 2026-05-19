@@ -6,18 +6,20 @@ import {
   Section,
   Stack,
   TextArea,
+  Slider,
 } from 'tgui-core/components';
 
 import { useBackend } from '../../backend';
 import type { PreferencesData } from './types';
 
-export function IdentityPage() {
+export function CharacterSetupPage() {
   const { act, data } = useBackend<PreferencesData>();
 
   return (
     <Stack fill vertical>
       <Stack.Item>
         <Stack fill>
+          {/* ── CHARACTER ── */}
           <Stack.Item grow>
             <Section title="Character">
               <div
@@ -73,11 +75,47 @@ export function IdentityPage() {
                     </Button>
                   </LabeledList.Item>
                 )}
-                <LabeledList.Item label="Vice">
-                  <Button onClick={() => act('set_charflaw')}>
-                    {data.charflaw}
-                  </Button>
+                <LabeledList.Item label="Vices">
+                  <Stack vertical>
+                    {(data.charflaws_list || []).map((flaw) => (
+                      <Stack.Item key={flaw.index}>
+                        <Stack>
+                          <Stack.Item grow>{flaw.name}</Stack.Item>
+                          <Stack.Item>
+                            <Button
+                              color="bad"
+                              icon="times"
+                              tooltip="Remove"
+                              onClick={() =>
+                                act('remove_charflaw', { index: flaw.index })
+                              }
+                            />
+                          </Stack.Item>
+                        </Stack>
+                      </Stack.Item>
+                    ))}
+                    {(data.charflaws_list || []).length < data.max_vices ? (
+                      <Stack.Item>
+                        <Button onClick={() => act('set_charflaw')}>
+                          Add Vice
+                        </Button>
+                      </Stack.Item>
+                    ) : (
+                      !(data.charflaws_list || []).length && (
+                        <Stack.Item>
+                          <span style={{ color: '#888' }}>None</span>
+                        </Stack.Item>
+                      )
+                    )}
+                  </Stack>
                 </LabeledList.Item>
+                {data.has_averse && (
+                  <LabeledList.Item label="Loathed Group">
+                    <Button onClick={() => act('set_averse_faction')}>
+                      {data.averse_faction}
+                    </Button>
+                  </LabeledList.Item>
+                )}
                 <LabeledList.Item label="Faith">
                   <Button onClick={() => act('set_faith')}>
                     {data.faith}
@@ -86,6 +124,11 @@ export function IdentityPage() {
                 <LabeledList.Item label="Patron">
                   <Button onClick={() => act('set_patron')}>
                     {data.patron}
+                  </Button>
+                </LabeledList.Item>
+                <LabeledList.Item label="Combat Music">
+                  <Button onClick={() => act('set_combat_music')}>
+                    {data.combat_music}
                   </Button>
                 </LabeledList.Item>
                 <LabeledList.Item label="Dominant Hand">
@@ -97,11 +140,49 @@ export function IdentityPage() {
                     {data.domhand === 1 ? 'Left-handed' : 'Right-handed'}
                   </Button>
                 </LabeledList.Item>
+                <LabeledList.Item label="Unrevivable">
+                  <Button
+                    selected={data.dnr_pref}
+                    onClick={() => act('toggle_dnr')}
+                  >
+                    {data.dnr_pref ? 'Yes' : 'No'}
+                  </Button>
+                </LabeledList.Item>
+                <LabeledList.Item label="Familiar Prefs">
+                  <Button onClick={() => act('open_familiar_prefs')}>
+                    Configure
+                  </Button>
+                </LabeledList.Item>
               </LabeledList>
             </Section>
           </Stack.Item>
           <Stack.Item grow>
             <Section title="Identity">
+              {data.character_sprite && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <img
+                    src={data.character_sprite}
+                    style={{
+                      width: '162px',
+                      height: '162px',
+                      imageRendering: 'pixelated',
+                      objectFit: 'contain',
+                      border: '3px solid #424242',
+                      boxShadow: '0 0 8px rgba(0,0,0,0.8)',
+                      background: '#1a1a1a',
+                    }}
+                  />
+                </div>
+              )}
+              {data.character_sprite && (
+                <hr style={{ borderColor: '#444', margin: '8px 0' }} />
+              )}
               <LabeledList>
                 <LabeledList.Item label="Name">
                   <Stack>
@@ -163,6 +244,25 @@ export function IdentityPage() {
                     onSelected={(val) => act('set_voice_pack', { value: val })}
                   />
                 </LabeledList.Item>
+                <LabeledList.Item label="Voice Pitch">
+                  <Slider
+                    color="bad"
+                    minValue={0.8}
+                    maxValue={1.35}
+                    step={0.01}
+                    stepPixelSize={6}
+                    value={data.voice_pitch}
+                    format={(v) => v.toFixed(2)}
+                    onChange={(_, v) =>
+                      act('set_voice_pitch_direct', { value: v })
+                    }
+                  />
+                </LabeledList.Item>
+                <LabeledList.Item label="Voice Color">
+                  <Button onClick={() => act('set_voice_color')}>
+                    {data.voice_color}
+                  </Button>
+                </LabeledList.Item>
                 <LabeledList.Item label="Body Type">
                   <Dropdown
                     options={data.body_type_options}
@@ -176,16 +276,6 @@ export function IdentityPage() {
                     selected={data.age}
                     onSelected={(val) => act('set_age', { value: val })}
                   />
-                </LabeledList.Item>
-                <LabeledList.Item label="Voice Color">
-                  <Button onClick={() => act('set_voice_color')}>
-                    {data.voice_color}
-                  </Button>
-                </LabeledList.Item>
-                <LabeledList.Item label="Voice Pitch">
-                  <Button onClick={() => act('set_voice_pitch')}>
-                    {data.voice_pitch}
-                  </Button>
                 </LabeledList.Item>
                 <LabeledList.Item label="Nickname Color">
                   <Button onClick={() => act('set_highlight_color')}>
@@ -261,7 +351,68 @@ export function IdentityPage() {
             </Section>
           </Stack.Item>
           <Stack.Item grow>
-            <Section title="Body" />
+            <Section title="Body">
+              <LabeledList>
+                <LabeledList.Item label="Headshot">
+                  <Button onClick={() => act('set_headshot')}>Change</Button>
+                </LabeledList.Item>
+                <LabeledList.Item label="Sprite Scale">
+                  <Button onClick={() => act('set_body_size')}>
+                    {data.body_size}%
+                  </Button>
+                </LabeledList.Item>
+                {data.has_skin_tones && (
+                  <LabeledList.Item label="Skin Tone">
+                    <Button onClick={() => act('set_skin_tone')}>
+                      {data.skin_tone}
+                    </Button>
+                  </LabeledList.Item>
+                )}
+                {data.has_mutant_colors && (
+                  <>
+                    <LabeledList.Item label="Mutant Color 1">
+                      <Button onClick={() => act('set_mutant_color1')}>
+                        {data.mutant_color1}
+                      </Button>
+                    </LabeledList.Item>
+                    <LabeledList.Item label="Mutant Color 2">
+                      <Button onClick={() => act('set_mutant_color2')}>
+                        {data.mutant_color2}
+                      </Button>
+                    </LabeledList.Item>
+                    <LabeledList.Item label="Mutant Color 3">
+                      <Button onClick={() => act('set_mutant_color3')}>
+                        {data.mutant_color3}
+                      </Button>
+                    </LabeledList.Item>
+                    <LabeledList.Item label="Auto-Update Colors">
+                      <Button
+                        selected={data.update_mutant_colors}
+                        onClick={() => act('toggle_update_mutant_colors')}
+                      >
+                        {data.update_mutant_colors ? 'Yes' : 'No'}
+                      </Button>
+                    </LabeledList.Item>
+                  </>
+                )}
+                <LabeledList.Item label="Features">
+                  <Button onClick={() => act('open_features')}>Change</Button>
+                </LabeledList.Item>
+                <LabeledList.Item label="Markings">
+                  <Button onClick={() => act('open_markings')}>Change</Button>
+                </LabeledList.Item>
+                <LabeledList.Item label="Descriptors">
+                  <Button onClick={() => act('open_descriptors')}>
+                    Change
+                  </Button>
+                </LabeledList.Item>
+                <LabeledList.Item label="Examine Theme">
+                  <Button onClick={() => act('set_examine_theme')}>
+                    {data.examine_theme}
+                  </Button>
+                </LabeledList.Item>
+              </LabeledList>
+            </Section>
           </Stack.Item>
         </Stack>
       </Stack.Item>

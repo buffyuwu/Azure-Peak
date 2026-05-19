@@ -1,4 +1,5 @@
 export type PreferencesData = {
+  character_sprite: string | null;
   real_name: string;
   nickname: string;
   pronouns: string;
@@ -37,4 +38,24 @@ export type PreferencesData = {
   song_artist: string;
   song_title: string;
   ooc_extra: string;
+  charflaws_list: Array<{ name: string; index: number }>;
+  max_vices: number;
+  has_averse: boolean;
+  averse_faction: string;
+  combat_music: string;
+  dnr_pref: boolean;
+  body_size: number;
+  has_skin_tones: boolean;
+  skin_tone: string;
+  examine_theme: string;
+  update_mutant_colors: boolean;
+  has_mutant_colors: boolean;
+  mutant_color1: string;
+  mutant_color2: string;
+  mutant_color3: string;
+  tgui_theme: string;
+  ambientocclusion: boolean;
+  windowflashing: boolean;
+  clientfps: number;
+  special_roles: Array<{ name: string; enabled: boolean }>;
 };

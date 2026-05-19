@@ -4,7 +4,7 @@
 	prefs.ui_interact(usr)
 
 // add assets here to use them in the front end
-/proc/get_preferences_assets(mob/user)
+/datum/preferences/proc/get_preferences_assets(mob/user)
 	var/static/list/asset_files = list(
 		"headshot_background.png" = file("icons/tgui/headshot_background.png"),
 	)
@@ -15,6 +15,43 @@
 		SSassets.transport.send_assets(user, asset_name)
 		urls[asset_name] = SSassets.transport.get_asset_url(asset_name)
 	return urls
+
+/datum/preferences/proc/generate_sprite_preview(mob/user)
+	var/dummy_key = "pref_preview_[REF(src)]"
+	var/mob/living/carbon/human/dummy/body = generate_or_wait_for_human_dummy(dummy_key)
+
+	copy_to(body, icon_updates = TRUE, roundstart_checks = FALSE, character_setup = TRUE)
+
+	if(length(gear_list))
+		for(var/item_name in gear_list)
+			var/datum/loadout_item/LI = GLOB.loadout_items_by_name[item_name]
+			if(!LI || !LI.path)
+				continue
+			var/obj/item/I = new LI.path(body)
+			if(I)
+				body.equip_to_appropriate_slot(I)
+	else if(topjob)
+		var/datum/job/J = SSjob.GetJob(topjob)
+		if(J)
+			J.equip(body, TRUE, FALSE)
+
+	body.setDir(SOUTH)
+	body.update_inv_hands(TRUE)
+	body.update_inv_belt(TRUE)
+	body.update_inv_back(TRUE)
+	body.update_inv_head(TRUE)
+
+	var/icon/flat = getFlatIcon(body)
+	unset_busy_human_dummy(dummy_key)
+
+	if(!flat)
+		return null
+
+	var/asset_name = "char_sprite_[REF(src)].png"
+	SSassets.transport.unregister_asset(asset_name)
+	SSassets.transport.register_asset(asset_name, flat)
+	SSassets.transport.send_assets(user, asset_name)
+	return SSassets.transport.get_asset_url(asset_name)
 
 /proc/get_tgui_themes()
 	var/static/list/themes = list(
@@ -67,9 +104,36 @@
 		var/datum/language/lang_ref = extra_language
 		lang_display = initial(lang_ref.name)
 
+	var/list/charflaws_data = list()
+	for(var/i = 1 to length(charflaws))
+		var/datum/charflaw/cf = charflaws[i]
+		if(!cf)
+			continue
+		charflaws_data += list(list("name" = "[cf]", "index" = i))
+	var/has_averse = FALSE
+	for(var/datum/charflaw/cf in charflaws)
+		if(istype(cf, /datum/charflaw/averse))
+			has_averse = TRUE
+			break
+	var/combat_music_name = "Default"
+	if(combat_music)
+		combat_music_name = combat_music.shortname ? combat_music.shortname : combat_music.name
+
+	var/examine_theme_display = "None (Use Viewer's)"
+	if(examine_theme)
+		var/list/et_theme_list = get_tgui_themes()
+		examine_theme_display = et_theme_list[examine_theme] || examine_theme
+	var/has_skin_tones = pref_species.use_skintones
+	var/has_mutant_colors = (MUTCOLORS in pref_species.species_traits) || (MUTCOLORS_PARTSONLY in pref_species.species_traits)
+
+	var/list/special_roles_data = list()
+	for(var/role in GLOB.special_roles_rogue)
+		special_roles_data += list(list("name" = role, "enabled" = (role in be_special)))
+
 	return list(
-		"real_name" = real_name,
-		"nickname" = nickname,
+		"character_sprite" = generate_sprite_preview(user),
+		"real_name" = html_decode(real_name),
+		"nickname" = html_decode(nickname),
 		"pronouns" = pronouns,
 		"pronouns_options" = GLOB.pronouns_list.Copy(),
 		"titles_pref" = titles_pref,
@@ -95,17 +159,39 @@
 		"faith" = (selected_patron?.associated_faith && GLOB.faithlist[selected_patron.associated_faith]) ? GLOB.faithlist[selected_patron.associated_faith] : "None",
 		"patron" = selected_patron ? selected_patron.name : "None",
 		"domhand" = domhand,
-		"flavortext" = flavortext || "",
+		"flavortext" = html_decode(flavortext || ""),
 		"headshot_link" = headshot_link || assets["headshot_background.png"],
-		"ooc_notes" = ooc_notes || "",
+		"ooc_notes" = html_decode(ooc_notes || ""),
 		"voice_color" = sanitize_hexcolor(voice_color, 6, 1),
 		"voice_pitch" = voice_pitch,
 		"highlight_color" = sanitize_hexcolor(highlight_color, 6, 1),
 		"extra_language" = lang_display,
 		"race_bonus" = race_bonus || "None",
-		"song_artist" = song_artist || "",
-		"song_title" = song_title || "",
+		"song_artist" = html_decode(song_artist || ""),
+		"song_title" = html_decode(song_title || ""),
 		"ooc_extra" = ooc_extra || "",
+		"charflaws_list" = charflaws_data,
+		"max_vices" = MAX_VICES,
+		"has_averse" = has_averse,
+		"averse_faction" = averse_chosen_faction || "Inquisition",
+		"combat_music" = combat_music_name,
+		"dnr_pref" = dnr_pref,
+		// Body column
+		"body_size" = round(features["body_size"] * 100),
+		"has_skin_tones" = has_skin_tones,
+		"skin_tone" = skin_tone || "Unknown",
+		"examine_theme" = examine_theme_display,
+		"update_mutant_colors" = update_mutant_colors,
+		"has_mutant_colors" = has_mutant_colors,
+		"mutant_color1" = sanitize_hexcolor(features["mcolor"] || "000000", 6, 1),
+		"mutant_color2" = sanitize_hexcolor(features["mcolor2"] || "000000", 6, 1),
+		"mutant_color3" = sanitize_hexcolor(features["mcolor3"] || "000000", 6, 1),
+		// Game settings
+		"tgui_theme" = get_tgui_theme_display_name(),
+		"ambientocclusion" = ambientocclusion,
+		"windowflashing" = windowflashing,
+		"clientfps" = clientfps,
+		"special_roles" = special_roles_data,
 	)
 
 /datum/preferences/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
@@ -351,6 +437,12 @@
 					. = TRUE
 				else
 					to_chat(ui.user, "<font color='red'>Value must be between [MIN_VOICE_PITCH] and [MAX_VOICE_PITCH].</font>")
+		if("set_voice_pitch_direct")
+			var/new_pitch = params["value"]
+			new_pitch = text2num(new_pitch)
+			if(new_pitch >= MIN_VOICE_PITCH && new_pitch <= MAX_VOICE_PITCH)
+				voice_pitch = new_pitch
+				. = TRUE
 		if("set_highlight_color")
 			var/new_color = input(ui.user, "Choose your nickname highlight color:", "Nickname Color", highlight_color) as color|null
 			if(new_color)
@@ -412,6 +504,118 @@
 		if("set_song_title")
 			song_title = sanitize(params["value"])
 			. = TRUE
+		if("remove_charflaw")
+			var/rem_index = text2num(params["index"])
+			if(rem_index >= 1 && rem_index <= length(charflaws))
+				charflaws.Remove(charflaws[rem_index])
+				. = TRUE
+		if("set_averse_faction")
+			var/choice = tgui_input_list(ui.user, "Who do you loathe?", "AVERSION", GLOB.averse_factions)
+			if(choice)
+				averse_chosen_faction = choice
+				. = TRUE
+		if("set_combat_music")
+			var/track_select = tgui_input_list(ui.user, "To you, the Signal sounds like:", "COMBAT MUSIC", GLOB.cmode_tracks_by_name, combat_music?.name)
+			if(track_select)
+				combat_music = GLOB.cmode_tracks_by_name[track_select]
+				. = TRUE
+		if("toggle_dnr")
+			dnr_pref = !dnr_pref
+			. = TRUE
+		if("open_familiar_prefs")
+			familiar_prefs.fam_show_ui()
+		if("set_headshot")
+			to_chat(ui.user, span_notice("Please use a SFW head and shoulder image. Direct image links only."))
+			var/new_link = tgui_input_text(ui.user, "Input headshot link (https, hosts: gyazo, discord, lensdump, imgbox, catbox):", "Headshot", headshot_link, encode = FALSE)
+			if(new_link != null)
+				if(new_link == "")
+					headshot_link = null
+					. = TRUE
+				else if(valid_headshot_link(ui.user, new_link))
+					headshot_link = new_link
+					log_game("[ui.user] has set their Headshot to '[headshot_link]'.")
+					. = TRUE
+		if("set_body_size")
+			var/new_size = tgui_input_number(ui.user, "Choose your sprite size ([BODY_SIZE_MIN*100]%-[BODY_SIZE_MAX*100]%):", "Sprite Scale", features["body_size"]*100, BODY_SIZE_MAX*100, BODY_SIZE_MIN*100)
+			if(new_size)
+				features["body_size"] = clamp(new_size * 0.01, BODY_SIZE_MIN, BODY_SIZE_MAX)
+				. = TRUE
+		if("set_skin_tone")
+			var/list/tone_list = pref_species.get_skin_list()
+			if(istype(virtue, /datum/virtue/combat/rotcured) || istype(virtuetwo, /datum/virtue/combat/rotcured))
+				tone_list["Rotten"] = SKIN_COLOR_ROT
+			var/picked_tone = tgui_input_list(ui.user, "Choose your character's skin tone:", "SKINTONE", tone_list)
+			if(picked_tone)
+				skin_tone = tone_list[picked_tone]
+				features["mcolor"] = sanitize_hexcolor(skin_tone)
+				try_update_mutant_colors()
+				. = TRUE
+		if("set_examine_theme")
+			var/list/et_themes = get_tgui_themes()
+			var/list/et_choices = list("None (Use Viewer's)")
+			for(var/theme_key in et_themes)
+				if(theme_key == "trey_liam")
+					continue
+				et_choices += et_themes[theme_key]
+			var/et_current = examine_theme ? (et_themes[examine_theme] || examine_theme) : "None (Use Viewer's)"
+			var/et_picked = tgui_input_list(ui.user, "Choose your examine theme:", "EXAMINE THEME", et_choices, et_current)
+			if(et_picked != null)
+				if(et_picked == "None (Use Viewer's)")
+					examine_theme = null
+				else
+					for(var/theme_key in et_themes)
+						if(et_themes[theme_key] == et_picked)
+							examine_theme = theme_key
+							break
+				. = TRUE
+		if("toggle_update_mutant_colors")
+			update_mutant_colors = !update_mutant_colors
+			. = TRUE
+		if("set_mutant_color1")
+			var/new_col1 = input(ui.user, "Choose mutant color #1:", "Mutant Color", "#" + features["mcolor"]) as color|null
+			if(new_col1)
+				features["mcolor"] = sanitize_hexcolor(new_col1)
+				try_update_mutant_colors()
+				. = TRUE
+		if("set_mutant_color2")
+			var/new_col2 = input(ui.user, "Choose mutant color #2:", "Mutant Color", "#" + features["mcolor2"]) as color|null
+			if(new_col2)
+				features["mcolor2"] = sanitize_hexcolor(new_col2)
+				try_update_mutant_colors()
+				. = TRUE
+		if("set_mutant_color3")
+			var/new_col3 = input(ui.user, "Choose mutant color #3:", "Mutant Color", "#" + features["mcolor3"]) as color|null
+			if(new_col3)
+				features["mcolor3"] = sanitize_hexcolor(new_col3)
+				try_update_mutant_colors()
+				. = TRUE
+		if("open_features")
+			ShowCustomizers(ui.user)
+		if("open_markings")
+			ShowMarkings(ui.user)
+		if("open_descriptors")
+			show_descriptors_ui(ui.user)
+		if("set_tgui_theme")
+			setTguiStyle(ui.user)
+		if("toggle_ambientocclusion")
+			ambientocclusion = !ambientocclusion
+			. = TRUE
+		if("toggle_windowflashing")
+			windowflashing = !windowflashing
+			. = TRUE
+		if("set_fps")
+			var/new_fps = tgui_input_number(ui.user, "Choose your FPS (0 to sync with server, 75 recommended):", "FPS", clientfps, 244, 0)
+			if(new_fps != null)
+				clientfps = clamp(new_fps, 0, 100)
+				. = TRUE
+		if("toggle_special_role")
+			var/role_name = params["role"]
+			if(role_name in GLOB.special_roles_rogue)
+				if(role_name in be_special)
+					be_special -= role_name
+				else
+					be_special += role_name
+				. = TRUE
 	if(.)
 		save_character()
 		SStgui.update_uis(src)

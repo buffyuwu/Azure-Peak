@@ -4,7 +4,8 @@ import { Tabs } from 'tgui-core/components';
 
 import { useBackend } from '../../backend';
 import { Window } from '../../layouts';
-import { IdentityPage } from './Identity';
+import { CharacterSetupPage } from './CharacterSetup';
+import { GameSettingsPage } from './GameSettings';
 import type { PreferencesData } from './types';
 
 type Page = 'identity' | 'settings';
@@ -14,7 +15,7 @@ export const PreferencesMenu = () => {
   const [page, setPage] = useState<Page>('identity');
 
   return (
-    <Window title="Character Preferences" width={900} height={1000}>
+    <Window title="Character Preferences" width={1200} height={1000}>
       <Window.Content scrollable>
         <Tabs fluid style={{ textAlign: 'center', textTransform: 'uppercase' }}>
           <Tabs.Tab
@@ -30,8 +31,8 @@ export const PreferencesMenu = () => {
             Game Settings
           </Tabs.Tab>
         </Tabs>
-        {page === 'identity' && <IdentityPage />}
-        {page === 'settings' && null}
+        {page === 'identity' && <CharacterSetupPage />}
+        {page === 'settings' && <GameSettingsPage />}
       </Window.Content>
     </Window>
   );
